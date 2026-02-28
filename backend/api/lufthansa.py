@@ -50,6 +50,40 @@ class LufthansaAPIClient:
         except Exception as e:
             return {"error": str(e), "Warning": "Placeholder return due to API error"}
 
+    async def get_flight_by_number(self, flight_number: str, date: str) -> Dict[str, Any]:
+        """Fetch flight status to resolve origin/destination from a flight number."""
+        try:
+            token = await self._get_access_token()
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json"
+            }
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/operations/flightstatus/{flight_number}/{date}",
+                    headers=headers
+                )
+                if response.status_code == 404:
+                    return {"error": f"Flight {flight_number} not found for {date}."}
+                if response.status_code == 422:
+                    return {"error": f"Invalid flight number format: {flight_number}."}
+                response.raise_for_status()
+                data = response.json()
+
+            # Parse departure and arrival airport codes
+            try:
+                flight_status = data["FlightStatusResource"]["Flights"]["Flight"]
+                # API may return a list or a single object
+                if isinstance(flight_status, list):
+                    flight_status = flight_status[0]
+                origin = flight_status["Departure"]["AirportCode"]
+                destination = flight_status["Arrival"]["AirportCode"]
+                return {"origin": origin, "destination": destination}
+            except (KeyError, IndexError, TypeError):
+                return {"error": "Could not parse flight status response."}
+        except Exception as e:
+            return {"error": str(e)}
+
     async def get_lounges(self, airport_code: str) -> Dict[str, Any]:
         """Fetch available lounges at a given airport."""
         try:
