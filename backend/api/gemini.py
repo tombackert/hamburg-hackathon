@@ -1,19 +1,20 @@
 import os
-import vertexai
-from vertexai.generative_models import GenerativeModel, Part
 from typing import Dict, Any
 from dotenv import load_dotenv
+from google import genai
 
 load_dotenv()
 
 class GeminiAgent:
     def __init__(self):
         self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-        self.location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+        # For gemini-3.1-pro-preview, the location must be global or us-central1 depending on the exact allowlist, 
+        # but the docs and our test show "global" is the right location for the preview model.
+        self.location = "global"
         
-        # Initialize Vertex AI
-        vertexai.init(project=self.project_id, location=self.location)
-        self.model = GenerativeModel("gemini-1.5-pro-002")
+        # Initialize the new Google GenAI SDK Client
+        self.client = genai.Client(vertexai=True, project=self.project_id, location=self.location)
+        self.model_name = "gemini-3.1-pro-preview"
 
     async def plan_itinerary(self, user_request: Dict[str, Any], flight_data: Dict[str, Any], lounge_data: Dict[str, Any]) -> str:
         """
@@ -38,9 +39,11 @@ class GeminiAgent:
         """
         
         try:
-            # Using synchronous generate_content wrapped in an async-friendly way or just calling natively if acceptable
-            # For the hackathon context, blocking the thread momentarily is okay or we could use generate_content_async if available
-            response = await self.model.generate_content_async(prompt)
+            # Using the new Async client methods from the google-genai SDK
+            response = await self.client.aio.models.generate_content(
+                model=self.model_name,
+                contents=prompt
+            )
             return response.text
         except Exception as e:
             return f"Failed to generate itinerary due to an error: {str(e)}"
