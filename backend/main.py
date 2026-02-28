@@ -97,8 +97,9 @@ async def plan_trip(request: UserRequest):
     )
     
     return {
-        "message": "Trip planned successfully.", 
-        "suggestion": itinerary_suggestion,
+        "message": "Trip planned successfully.",
+        "summary": itinerary_suggestion.get("summary", ""),
+        "itinerary": itinerary_suggestion.get("itinerary", {}),
         "flight_data": flight_data,
         "resolved_route": {"origin": origin, "destination": destination}
     }
@@ -163,8 +164,10 @@ async def plan_trip_by_flight(request: FlightNumberRequest):
 
     return {
         "message": "Trip planned successfully.",
-        "suggestion": itinerary_suggestion,
+        "summary": itinerary_suggestion.get("summary", ""),
+        "itinerary": itinerary_suggestion.get("itinerary", {}),
         "flight_data": flight_data,
+        "resolved_route": {"origin": origin, "destination": destination},
         "origin": origin,
         "destination": destination,
     }

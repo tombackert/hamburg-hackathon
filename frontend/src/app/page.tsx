@@ -21,6 +21,11 @@ type Message = {
   content: string;
 };
 
+type LoungeSummary = { name: string; access_requirement: string; highlights: string; };
+type LayoverStop = { airport: string; duration_minutes: number; lounges: LoungeSummary[]; };
+type FlightSegment = { flight_number: string; from: string; to: string; departure?: string; arrival?: string; class?: string; };
+type TripItinerary = { flights: FlightSegment[]; layovers: LayoverStop[]; total_lounge_time_minutes: number; };
+
 const LOADING_STEPS = [
   'Looking up flight...',
   'Finding lounges...',
@@ -55,6 +60,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [tripItinerary, setTripItinerary] = useState<TripItinerary | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -112,7 +118,8 @@ export default function Home() {
 
       setResolvedOrigin(data.resolved_route?.origin || origin || '');
       setResolvedDestination(data.resolved_route?.destination || destination || '');
-      setMessages([{ role: 'assistant', content: data.suggestion }]);
+      setMessages([{ role: 'assistant', content: data.summary || data.suggestion || '' }]);
+      setTripItinerary(data.itinerary && Object.keys(data.itinerary).length > 0 ? data.itinerary : null);
       setView('results');
     } catch (err: any) {
       setError(err.message || 'An error occurred while fetching your routing.');
@@ -273,22 +280,44 @@ export default function Home() {
                     </div>
                     <h3 className="text-lg font-bold text-white">Route Overview</h3>
                   </div>
-                  <div className="flex items-center justify-between py-4 border-y border-white/5">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">{resolvedOrigin || '---'}</div>
-                      <div className="text-[10px] text-gray-500 uppercase">Departure</div>
+                  {tripItinerary?.flights && tripItinerary.flights.length > 0 ? (
+                    <div className="space-y-0 divide-y divide-white/5">
+                      {tripItinerary.flights.map((flight, i) => (
+                        <div key={i} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
+                          <div className="text-center w-16">
+                            <div className="text-xl font-bold">{flight.from}</div>
+                            {flight.departure && <div className="text-[10px] text-gray-500 mt-0.5">{flight.departure}</div>}
+                          </div>
+                          <div className="flex-1 flex flex-col items-center px-4 relative">
+                            <div className="text-[10px] text-gray-500 font-mono mb-1">{flight.flight_number}</div>
+                            <div className="w-full h-[1px] bg-gradient-to-r from-primary-500/40 to-secondary-500/40" />
+                            {flight.class && <div className="text-[10px] text-primary-400 mt-1">{flight.class}</div>}
+                          </div>
+                          <div className="text-center w-16">
+                            <div className="text-xl font-bold">{flight.to}</div>
+                            {flight.arrival && <div className="text-[10px] text-gray-500 mt-0.5">{flight.arrival}</div>}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex-1 flex flex-col items-center px-8 relative">
-                      <div className="w-full h-[2px] bg-gradient-to-r from-primary-500 to-secondary-500 opacity-30" />
-                      <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-dark-900 border border-white/20 p-1 rounded-full">
-                        <MapPin className="w-3 h-3 text-secondary-500" />
+                  ) : (
+                    <div className="flex items-center justify-between py-4 border-y border-white/5">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{resolvedOrigin || '---'}</div>
+                        <div className="text-[10px] text-gray-500 uppercase">Departure</div>
+                      </div>
+                      <div className="flex-1 flex flex-col items-center px-8 relative">
+                        <div className="w-full h-[2px] bg-gradient-to-r from-primary-500 to-secondary-500 opacity-30" />
+                        <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-dark-900 border border-white/20 p-1 rounded-full">
+                          <MapPin className="w-3 h-3 text-secondary-500" />
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{resolvedDestination || '---'}</div>
+                        <div className="text-[10px] text-gray-500 uppercase">Arrival</div>
                       </div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">{resolvedDestination || '---'}</div>
-                      <div className="text-[10px] text-gray-500 uppercase">Arrival</div>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="glass-panel p-6 border-white/10 bg-white/5">
@@ -298,9 +327,41 @@ export default function Home() {
                     </div>
                     <h3 className="text-lg font-bold text-white">Recommended Lounges</h3>
                   </div>
-                  <div className="text-gray-300 text-sm leading-relaxed">
-                    Check the chat panel on the left for the full breakdown of your personalized lounge recommendations and flight connections.
-                  </div>
+                  {tripItinerary?.layovers && tripItinerary.layovers.length > 0 ? (
+                    <div className="space-y-5">
+                      {tripItinerary.layovers.map((layover, i) => (
+                        <div key={i} className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-white font-mono tracking-wider">{layover.airport}</span>
+                            <span className="text-xs text-gray-400">
+                              {Math.floor(layover.duration_minutes / 60)}h {layover.duration_minutes % 60}m layover
+                            </span>
+                          </div>
+                          {layover.lounges.map((lounge, j) => (
+                            <div key={j} className="bg-dark-900/60 rounded-xl p-4 border border-white/5 space-y-2">
+                              <div className="font-semibold text-white text-sm">{lounge.name}</div>
+                              <span className="inline-block px-2 py-0.5 rounded-full bg-secondary-500/10 border border-secondary-500/20 text-secondary-400 text-[10px] font-semibold">
+                                {lounge.access_requirement}
+                              </span>
+                              <p className="text-gray-400 text-xs leading-relaxed">{lounge.highlights}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                      {tripItinerary.total_lounge_time_minutes > 0 && (
+                        <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs">
+                          <span className="text-gray-500">Total lounge time</span>
+                          <span className="text-primary-400 font-semibold">
+                            {Math.floor(tripItinerary.total_lounge_time_minutes / 60)}h {tripItinerary.total_lounge_time_minutes % 60}m
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-gray-300 text-sm leading-relaxed">
+                      Check the chat panel on the left for the full breakdown of your personalized lounge recommendations and flight connections.
+                    </div>
+                  )}
                 </div>
               </div>
 
