@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #f0fdf4;
+  --color-primary-100: #dcfce7;
+  --color-primary-500: #22c55e;
+  --color-primary-600: #16a34a;
+  --color-primary-900: #14532d;
+  --color-secondary-500: #eab308;
+  --color-dark-800: #1f2937;
+  --color-dark-900: #111827;
+}
+
+@utility glass-panel {
+  background-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+}
+
+body {
+  background-color: var(--color-dark-900);
+  color: white;
+  -webkit-font-smoothing: antialiased;
+}

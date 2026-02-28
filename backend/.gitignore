@@ -1,0 +1,25 @@
+# Environments
+.env
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs
+logs/
+*.log
+
+# Caches
+.pytest_cache/
+.coverage
+htmlcov/
