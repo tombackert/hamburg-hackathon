@@ -16,40 +16,53 @@ class GeminiAgent:
         self.client = genai.Client(vertexai=True, project=self.project_id, location=self.location)
         self.model_name = "gemini-3-flash-preview"
 
-    async def plan_itinerary(self, user_request: Dict[str, Any], flight_data: Dict[str, Any], lounge_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def plan_itinerary(self, user_request: Dict[str, Any], flight_data: list[Dict[str, Any]], lounge_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Takes user preferences, available flights, and lounge data,
-        and uses Gemini to reason about the best possible itinerary.
+        Takes user preferences, enriched flight routings (with pre-computed layover times),
+        and lounge data, and uses Gemini to select the optimal itinerary.
         Returns a dict with 'summary' and 'itinerary' keys.
         """
         prompt = f"""You are a luxury travel concierge for a high-value executive. Time is the scarcest luxury — every minute matters.
 
-Your goal: maximize the executive's time in the finest accessible lounge, minimizing dead time at gates or in transit.
+Optimization objective (in priority order):
+1. PRIMARY: minimize total_travel_minutes — the executive's time is precious.
+2. SECONDARY: among routings with similar total travel time, prefer the one with the highest total_layover_lounge_minutes.
+
+IMPORTANT — Origin airport lounge:
+The executive arrives at the origin airport early regardless of routing. The departure lounge is a free perk, NOT a trade-off. Do NOT include origin lounge time in the optimization score. Still recommend the departure lounge as a courtesy in the layovers array.
 
 User Request:
 {user_request}
 
-Available Flight Data:
+Available Flight Routings (pre-computed, sorted by lounge_score descending):
 {flight_data}
 
-Available Lounge Data:
+Each routing includes:
+- flights: list of flight legs with real departure/arrival timestamps
+- total_travel_minutes: actual door-to-door travel time from the API
+- layovers: list of layover airports with layover_minutes and lounge_time_available_minutes (= layover_minutes - 45 min transit buffer, min 0)
+- total_layover_lounge_minutes: sum of lounge_time_available_minutes across all layovers
+- lounge_score: total_layover_lounge_minutes / total_travel_minutes
+
+Available Lounge Data (by airport code):
 {lounge_data}
 
-Task: Design the optimal routing that maximizes lounge time given their status ({user_request.get('status')}) and travel class ({user_request.get('flight_class')}).
-- Prioritize layovers at airports with premium lounges (First Class Terminal at FRA, Senator Lounge, Business Lounge at MUC, etc.)
-- Avoid tight connections that force rushing between gates
-- If actual flight data is missing or returns errors, reason theoretically using major Lufthansa hubs (FRA, MUC) where premium lounges exist
+Task: Select the single best routing for the executive given their status ({user_request.get('status')}) and travel class ({user_request.get('flight_class')}).
+- Use the pre-computed lounge_time_available_minutes values verbatim — do NOT estimate or invent durations.
+- Prefer routings at airports with premium lounges (First Class Terminal at FRA, Senator Lounge at MUC, etc.)
+- If flight_data is empty, reason theoretically using major Lufthansa hubs (FRA, MUC).
 
 Respond ONLY with a valid JSON object wrapped in a ```json code block.
 
 Rules for the `layovers` array:
-- The FIRST entry MUST be the departure (origin) airport with `"stop_type": "departure"` and `"duration_minutes"` set to the estimated pre-flight lounge time (60–90 minutes).
-- All subsequent entries are actual layover airports with `"stop_type": "layover"`.
+- The FIRST entry MUST be the departure (origin) airport with `"stop_type": "departure"` and `"duration_minutes": 75` (fixed 75-minute pre-flight buffer — this is NOT part of the optimization).
+- All subsequent entries are actual layover airports with `"stop_type": "layover"` and `"duration_minutes"` set to the pre-computed `lounge_time_available_minutes` for that layover.
 - Each lounge object uses a `"features"` array (NOT a `"highlights"` string).
+- `total_lounge_time_minutes` = sum of `duration_minutes` for layover entries ONLY (exclude the departure entry).
 
 ```json
 {{
-  "summary": "<2-3 sentence executive-friendly recap: what is booked, which lounge they will access, and the headline benefit>",
+  "summary": "<2-3 sentence executive-friendly recap: routing chosen, lounge(s) accessed, and headline benefit>",
   "itinerary": {{
     "flights": [
       {{"flight_number": "LH400", "from": "JFK", "to": "FRA", "departure": "18:30", "arrival": "08:15+1", "class": "Business"}}
@@ -58,7 +71,7 @@ Rules for the `layovers` array:
       {{
         "airport": "JFK",
         "stop_type": "departure",
-        "duration_minutes": 90,
+        "duration_minutes": 75,
         "lounges": [
           {{"name": "Lufthansa Business Lounge JFK", "access_requirement": "Business Class or Senator status", "features": ["Premium dining", "Bar service", "High-speed Wi-Fi"]}}
         ]
@@ -72,7 +85,7 @@ Rules for the `layovers` array:
         ]
       }}
     ],
-    "total_lounge_time_minutes": 240
+    "total_lounge_time_minutes": 150
   }}
 }}
 ```"""
