@@ -30,6 +30,14 @@ class UserRequest(BaseModel):
     flight_class: str
     status: str
 
+class ChatRequest(BaseModel):
+    messages: list[dict[str, str]]
+
+@app.post("/chat")
+async def chat_with_agent(request: ChatRequest):
+    response_text = await gemini.chat(request.messages)
+    return {"response": response_text}
+
 @app.post("/plan")
 async def plan_trip(request: UserRequest):
     # Fetch flights

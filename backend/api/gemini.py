@@ -14,7 +14,7 @@ class GeminiAgent:
         
         # Initialize the new Google GenAI SDK Client
         self.client = genai.Client(vertexai=True, project=self.project_id, location=self.location)
-        self.model_name = "gemini-3.1-pro-preview"
+        self.model_name = "gemini-3-flash-preview"
 
     async def plan_itinerary(self, user_request: Dict[str, Any], flight_data: Dict[str, Any], lounge_data: Dict[str, Any]) -> str:
         """
@@ -48,3 +48,26 @@ class GeminiAgent:
         except Exception as e:
             return f"Failed to generate itinerary due to an error: {str(e)}"
 
+    async def chat(self, messages: list[dict[str, str]]) -> str:
+        """
+        Continues a conversation based on the provided message history.
+        """
+        try:
+            # We convert the simple list of dicts to the format expected by the SDK if needed,
+            # but for now we'll just use the raw contents if it fits the schema.
+            # Expected format for contents: [{'role': 'user'|'model', 'parts': [{'text': ...}]}]
+            formatted_contents = []
+            for msg in messages:
+                role = "user" if msg["role"] == "user" else "model"
+                formatted_contents.append({
+                    "role": role,
+                    "parts": [{"text": msg["content"]}]
+                })
+
+            response = await self.client.aio.models.generate_content(
+                model=self.model_name,
+                contents=formatted_contents
+            )
+            return response.text
+        except Exception as e:
+            return f"Failed to continue chat due to an error: {str(e)}"
