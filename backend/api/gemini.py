@@ -40,7 +40,12 @@ Task: Design the optimal routing that maximizes lounge time given their status (
 - Avoid tight connections that force rushing between gates
 - If actual flight data is missing or returns errors, reason theoretically using major Lufthansa hubs (FRA, MUC) where premium lounges exist
 
-Respond ONLY with a valid JSON object wrapped in a ```json code block:
+Respond ONLY with a valid JSON object wrapped in a ```json code block.
+
+Rules for the `layovers` array:
+- The FIRST entry MUST be the departure (origin) airport with `"stop_type": "departure"` and `"duration_minutes"` set to the estimated pre-flight lounge time (60–90 minutes).
+- All subsequent entries are actual layover airports with `"stop_type": "layover"`.
+- Each lounge object uses a `"features"` array (NOT a `"highlights"` string).
 
 ```json
 {{
@@ -51,14 +56,23 @@ Respond ONLY with a valid JSON object wrapped in a ```json code block:
     ],
     "layovers": [
       {{
+        "airport": "JFK",
+        "stop_type": "departure",
+        "duration_minutes": 90,
+        "lounges": [
+          {{"name": "Lufthansa Business Lounge JFK", "access_requirement": "Business Class or Senator status", "features": ["Premium dining", "Bar service", "High-speed Wi-Fi"]}}
+        ]
+      }},
+      {{
         "airport": "FRA",
+        "stop_type": "layover",
         "duration_minutes": 150,
         "lounges": [
-          {{"name": "Lufthansa Senator Lounge", "access_requirement": "Senator status or Business Class", "highlights": "Fine dining, private workspaces, spa access"}}
+          {{"name": "Lufthansa Senator Lounge", "access_requirement": "Senator status or Business Class", "features": ["Fine dining", "Private workspaces", "Spa access"]}}
         ]
       }}
     ],
-    "total_lounge_time_minutes": 150
+    "total_lounge_time_minutes": 240
   }}
 }}
 ```"""

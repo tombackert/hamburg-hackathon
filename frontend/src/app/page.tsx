@@ -21,8 +21,8 @@ type Message = {
   content: string;
 };
 
-type LoungeSummary = { name: string; access_requirement: string; highlights: string; };
-type LayoverStop = { airport: string; duration_minutes: number; lounges: LoungeSummary[]; };
+type LoungeSummary = { name: string; access_requirement: string; features: string[]; };
+type LayoverStop = { airport: string; duration_minutes: number; stop_type?: 'departure' | 'layover'; lounges: LoungeSummary[]; };
 type FlightSegment = { flight_number: string; from: string; to: string; departure?: string; arrival?: string; class?: string; };
 type TripItinerary = { flights: FlightSegment[]; layovers: LayoverStop[]; total_lounge_time_minutes: number; };
 
@@ -332,9 +332,21 @@ export default function Home() {
                       {tripItinerary.layovers.map((layover, i) => (
                         <div key={i} className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-bold text-white font-mono tracking-wider">{layover.airport}</span>
+                            <div className="flex items-center gap-2">
+                              {layover.stop_type === 'departure' && (
+                                <PlaneTakeoff className="w-3.5 h-3.5 text-primary-400" />
+                              )}
+                              <span className="text-sm font-bold text-white font-mono tracking-wider">{layover.airport}</span>
+                              {layover.stop_type === 'departure' && (
+                                <span className="px-1.5 py-0.5 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400 text-[9px] font-bold uppercase tracking-wider">
+                                  Departure
+                                </span>
+                              )}
+                            </div>
                             <span className="text-xs text-gray-400">
-                              {Math.floor(layover.duration_minutes / 60)}h {layover.duration_minutes % 60}m layover
+                              {layover.stop_type === 'departure'
+                                ? `~${layover.duration_minutes}m pre-departure`
+                                : `${Math.floor(layover.duration_minutes / 60)}h ${layover.duration_minutes % 60}m layover`}
                             </span>
                           </div>
                           {layover.lounges.map((lounge, j) => (
@@ -343,7 +355,14 @@ export default function Home() {
                               <span className="inline-block px-2 py-0.5 rounded-full bg-secondary-500/10 border border-secondary-500/20 text-secondary-400 text-[10px] font-semibold">
                                 {lounge.access_requirement}
                               </span>
-                              <p className="text-gray-400 text-xs leading-relaxed">{lounge.highlights}</p>
+                              <ul className="space-y-1 mt-2">
+                                {(lounge.features ?? []).map((f, k) => (
+                                  <li key={k} className="flex items-center gap-2 text-xs text-gray-300">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-secondary-500/70 shrink-0" />
+                                    {f}
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
                           ))}
                         </div>
